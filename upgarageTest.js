@@ -1,6 +1,6 @@
 const axios = require("axios");
 
-const API_BASE_URL = "http://challenge.z2o.cloud/challenges";
+const API_BASE_URL = ""; // /challengesまでのURLを設定
 const NICKNAME = "htanaka";
 
 const startChallenge = async () => {
@@ -8,22 +8,26 @@ const startChallenge = async () => {
     const res = await axios.post(`${API_BASE_URL}?nickname=${NICKNAME}`);
     const { id, actives_at } = res.data;
     console.log(`Challenge started: ${id}`);
-    await excuteCalls(id, actives_at);
+    await executeCalls(id, actives_at);
   } catch (error) {
     console.error(error);
   }
 };
 
-const excuteCalls = async (challengeId, activesAt) => {
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const executeCalls = async (challengeId, activesAt) => {
+  let expectedTime = activesAt;
   while (true) {
     const now = Date.now();
-    const delay = activesAt - now;
+    let delay = expectedTime - now;
 
     if (delay > 0) {
       console.log(`Waiting for ${delay}ms`);
-      await new Promise((resolve) => setTimeout(resolve, delay));
+      await sleep(delay);
     }
 
+    const startTime = Date.now();
     try {
       const res = await axios.put(
         API_BASE_URL,
@@ -39,14 +43,19 @@ const excuteCalls = async (challengeId, activesAt) => {
       console.log(`Total diff: ${total_diff}`);
 
       if (result) {
-        console.log(`Challenge completed: ${result}, URL: ${result.url}`);
+        console.log(
+          `Challenge completed: Attempts: ${result.attempts}, URL: ${result.url}`
+        );
         break;
       }
-      activesAt = actives_at;
+
+      // 誤差補正: リクエストにかかった時間を考慮
+      expectedTime = actives_at + (Date.now() - startTime);
     } catch (error) {
       console.error(`Error making call: ${error.message}`);
       break;
     }
   }
 };
+
 startChallenge();
